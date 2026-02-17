@@ -770,8 +770,6 @@ with col_cfg:
 
 
     st.markdown("---")
-    # REMPLACEZ use_container_width=True par width='stretch'
-    if st.button("▶️ Démarrer l'Analyse", disabled=CF.is_running, width='stretch'):
         
         # LOGIQUE DE CONVERSION DE SOURCE (IMPORTANT)
         # OpenCV a besoin d'un ENTIER (0) et non d'un TEXTE ("0") pour la webcam
@@ -893,6 +891,7 @@ if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
 
     st.rerun()
+
 
 
 
