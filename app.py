@@ -681,30 +681,35 @@ Voici le bloc corrigé, simplifié et optimisé pour le Cloud. J'ai fusionné le
 Remplacez tout votre bloc with col_cfg: par celui-ci :
 Python
 
+# =================================================================
+# SECTION : INTERFACE ET CONTRÔLE (VERSION FINALE ROBUSTE)
+# =================================================================
+
+# 1. Mise en page principale (Layout)
+col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
+
 with col_cfg:
     st.header("⚙️ Configuration")
 
     # --- MESSAGE D'AVERTISSEMENT CLOUD ---
     st.info("""
-    **🚀 Mode Cloud détecté** La caméra de votre ordinateur (0/1) n'est pas accessible directement par le serveur.  
+    **🚀 Mode Cloud détecté** La caméra locale (0/1) n'est pas accessible par le serveur.  
     
-    👉 **Pour tester :** Choisissez le mode **'Upload'** ci-dessous et envoyez une vidéo.  
-    👉 **En local :** Téléchargez l'app pour utiliser votre webcam.
+    👉 **Action :** Sélectionnez le mode **'Upload'** ci-dessous pour tester avec une vidéo.
     """)
     
-    # --- SÉLECTION DU MODE (UNE SEULE FOIS) ---
-    # Par défaut, on met l'index sur 1 (Upload) pour éviter l'erreur caméra au démarrage sur le Cloud
-    mode = st.radio(
+    # --- SÉLECTION DU MODE (UNIQUE) ---
+    # Index 1 = 'Upload' sélectionné par défaut pour éviter les erreurs caméra au chargement
+    mode_selection = st.radio(
         "Mode Source", 
         ["Live", "Upload"], 
         index=1, 
-        key='mode_radio_unique',
-        help="Choisissez 'Upload' pour tester avec un fichier vidéo sur le Cloud."
+        key='main_mode_radio'
     )
-    app['analysis_mode'] = 'Upload' if mode == 'Upload' else 'Live'
+    app['analysis_mode'] = mode_selection
 
     if app['analysis_mode'] == 'Live':
-        # Mapping propre pour la sélection de caméra
+        # Mapping pour la sélection de caméra
         options_sources = {
             "Caméra Intégrée (0)": "0",
             "Caméra USB (1)": "1",
@@ -724,8 +729,7 @@ with col_cfg:
     st.markdown("---")
 
     # SECTION : ROI ET SEUILS
-    roi_mode = st.radio("Mode ROI", ["Manuel", "Automatique"], index=0, key='roi_mode_radio')
-    app['roi_mode'] = roi_mode
+    app['roi_mode'] = st.radio("Mode ROI", ["Manuel", "Automatique"], index=0, key='roi_logic_radio')
     is_manual_roi = (app['roi_mode'] == 'Manuel')
 
     with st.expander("📍 Zones d'Intérêt (ROI)", expanded=False):
@@ -742,28 +746,22 @@ with col_cfg:
         app['rsh'] = st.number_input("rsh", value=int(app['rsh']), disabled=not is_manual_roi)
 
     with st.expander("🎚️ Paramètres Détection", expanded=False):
-        st.subheader("Fumée & Flamme")
-        app['flame_area_frac'] = st.number_input("Seuil surf. flamme", value=float(app['flame_area_frac']), step=0.001)
-        app['black_frac'] = st.number_input("Seuil fumée noire", value=float(app['black_frac']), step=0.005)
-        app['grey_frac'] = st.number_input("Seuil fumée grise", value=float(app['grey_frac']), step=0.005)
-        
-        st.subheader("HSV Flamme")
+        st.subheader("Seuils Flamme")
         fcol1, fcol2 = st.columns(2)
         with fcol1:
-            lower_h = st.number_input("H min", value=int(app['flame_hsv_lower'][0]))
-            lower_s = st.number_input("S min", value=int(app['flame_hsv_lower'][1]))
-            lower_v = st.number_input("V min", value=int(app['flame_hsv_lower'][2]))
+            l_h = st.number_input("H min", 0, 179, int(app['flame_hsv_lower'][0]))
+            l_s = st.number_input("S min", 0, 255, int(app['flame_hsv_lower'][1]))
+            l_v = st.number_input("V min", 0, 255, int(app['flame_hsv_lower'][2]))
         with fcol2:
-            upper_h = st.number_input("H max", value=int(app['flame_hsv_upper'][0]))
-            upper_s = st.number_input("S max", value=int(app['flame_hsv_upper'][1]))
-            upper_v = st.number_input("V max", value=int(app['flame_hsv_upper'][2]))
-        app['flame_hsv_lower'] = [lower_h, lower_s, lower_v]
-        app['flame_hsv_upper'] = [upper_h, upper_s, upper_v]
+            u_h = st.number_input("H max", 0, 179, int(app['flame_hsv_upper'][0]))
+            u_s = st.number_input("S max", 0, 255, int(app['flame_hsv_upper'][1]))
+            u_v = st.number_input("V max", 0, 255, int(app['flame_hsv_upper'][2]))
+        app['flame_hsv_lower'] = [l_h, l_s, l_v]
+        app['flame_hsv_upper'] = [u_h, u_s, u_v]
 
     st.markdown("---")
 
-    # SECTION : BOUTONS DE COMMANDE (LOGIQUE ROBUSTE)
-    # On prépare les seuils ici
+    # BOUTONS DE COMMANDE
     thresholds_ui = {
         'flame_hsv_lower': app['flame_hsv_lower'],
         'flame_hsv_upper': app['flame_hsv_upper'],
@@ -773,7 +771,6 @@ with col_cfg:
     }
 
     if st.button("▶️ Démarrer l'Analyse", disabled=CF.is_running, width='stretch'):
-        # Conversion forcée pour OpenCV
         try:
             final_src = int(source_input) if (isinstance(source_input, str) and source_input.isdigit()) else source_input
         except:
@@ -793,7 +790,6 @@ with col_cfg:
 with col_vid:
     st.header("🎥 Flux Vidéo & Diagnostic")
     
-    # Affichage de l'image (Norme 2026 : width='stretch')
     if app.get('last_frame_rgb') is not None:
         st.image(app['last_frame_rgb'], caption="Direct - Surveillance Torchère", width="stretch")
     else:
@@ -801,19 +797,17 @@ with col_vid:
 
     st.markdown("---")
     
-    # Affichage du statut avec couleur dynamique
     status = app.get('current_status', 'Inconnu')
     info = DIAGNOSTIC_INFO.get(status, DIAGNOSTIC_INFO["Unknown"])
     color_hex = f'rgb({info["Color"][2]}, {info["Color"][1]}, {info["Color"][0]})'
     
     st.markdown(f"""
-    <div style="padding: 15px; border-radius: 10px; background-color: {color_hex}; color: black; border: 2px solid #333;">
-        <h3 style="margin:0;">Statut : {status}</h3>
-        <p style="margin:5px 0 0 0;"><strong>Diagnostic :</strong> {info["Signification"]}</p>
+    <div style="padding: 15px; border-radius: 10px; background-color: {color_hex}; color: black; border: 2px solid #333; text-align: center;">
+        <h2 style="margin:0;">Statut : {status}</h2>
+        <p style="margin:5px 0 0 0; font-size: 1.1em;"><strong>Diagnostic :</strong> {info["Signification"]}</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Métriques en colonnes
     m1, m2, m3 = st.columns(3)
     m1.metric("Opacité", f"{app.get('opacity_live', 0.0):.1f} %")
     m2.metric("Ratio Flamme", f"{app.get('flame_ratio', 0.0):.4f}")
@@ -823,7 +817,6 @@ with col_vid:
 with col_logs:
     st.header("📊 Historique")
     
-    # Graphique d'opacité
     opacity_df = pd.DataFrame(list(app.get('opacity_deque', deque())), columns=['time', 'opacity'])
     if not opacity_df.empty:
         opacity_df.set_index('time', inplace=True)
@@ -833,28 +826,24 @@ with col_logs:
 
     st.markdown("---")
 
-    # CSV Log Download
     csv_file = app.get('csv_file', DEFAULT_CSV)
     if os.path.exists(csv_file):
         with open(csv_file, "r") as f:
             st.download_button(label="📥 Télécharger CSV", data=f.read(), file_name=csv_file, mime="text/csv", width='stretch')
         
-        st.subheader("Dernières entrées")
+        st.subheader("Derniers relevés")
         try:
             log_df = pd.read_csv(csv_file).tail(5)
             st.dataframe(log_df, width="stretch")
         except:
             pass
 
-    # Journal des Alertes
     st.subheader("🚨 Alertes")
     if os.path.exists(ALERTS_LOG_FILE):
         with open(ALERTS_LOG_FILE, "r") as f:
-            st.text_area("Logs", f.read(), height=150)
+            st.text_area("Journal", f.read(), height=150)
 
 # 4. Rafraîchissement automatique
 if CF.is_running:
     time.sleep(1)
     st.rerun()
-
-
