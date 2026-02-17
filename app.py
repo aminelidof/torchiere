@@ -667,18 +667,29 @@ app = st.session_state.app_state
 # Layout
 col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
 
-# ... [La colonne col_cfg (configuration) reste inchangée] ...
 with col_cfg:
     st.header("⚙️ Configuration")
     mode = st.radio("Mode Source", ["Live", "Upload"], index=0, key='mode_radio')
     app['analysis_mode'] = 'Upload' if mode == 'Upload' else 'Live'
 
     if app['analysis_mode'] == 'Live':
-        source_input = st.text_input("Source (index/path)", value='0')
+        # --- NOUVEAU : Sélection par menu déroulant ---
+        options_sources = {
+            "Caméra Intégrée (0)": "0",
+            "Caméra USB (1)": "1",
+            "Flux RTSP / IP": "custom"
+        }
+        choix_source = st.selectbox("Choisir l'entrée", options=list(options_sources.keys()))
+        
+        if choix_source == "Flux RTSP / IP":
+            source_input = st.text_input("URL du flux (rtsp://...)", value='rtsp://admin:password@192.168.1.10:554/stream')
+        else:
+            source_input = options_sources[choix_source]
+        
         uploaded = None
     else:
-        source_input = st.text_input("Source (disabled)", value='N/A', disabled=True)
-        uploaded = st.file_uploader("Fichier image/vidéo", type=['jpg','jpeg','png','mp4','avi','mov'])
+        source_input = st.text_input("Source (désactivée)", value='N/A', disabled=True)
+        uploaded = st.file_uploader("Fichier vidéo", type=['mp4', 'avi', 'mov', 'mkv'])
         
     st.markdown("---")
     
@@ -844,4 +855,5 @@ if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
 
     st.rerun()
+
 
