@@ -765,7 +765,7 @@ with col_vid:
     if app.get('last_frame_rgb') is not None:
         st.image(app['last_frame_rgb'], caption="Analyse en Temps Réel", use_column_width=True)
     else:
-        st.image("24609129-row-of-three-smokestacks-on-industrial-factory-plant-roof-adding-grey-smoke-to-grey-sky.jpg", caption="Image par Défaut (Torchère/Cheminée)", use_column_width=True)
+        st.image("Gaz-torche.jpg", caption="Image par Défaut (Torchère/Cheminée)", use_column_width=True)
         # 
 
     st.markdown("---")
@@ -842,4 +842,5 @@ with col_logs:
 # Ce block est nécessaire pour que Streamlit puisse rafraîchir l'UI
 if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
+
     st.rerun()
