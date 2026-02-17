@@ -117,16 +117,27 @@ def init_csv(file_path: str):
 init_csv(DEFAULT_CSV)
 
 def create_cap(source):
-    # Accept numeric string indices as integers
+    # 1. Convertit le texte "0" en nombre 0 pour OpenCV
     try:
         if isinstance(source, str) and source.isdigit():
             source = int(source)
     except Exception:
         pass
+
+    # 2. Tentative d'ouverture de la source
     cap = cv2.VideoCapture(source)
-    if isinstance(source, int):
+
+    # 3. SÉCURITÉ : Si la caméra (ex: index 1) ne s'ouvre pas, on force la caméra 0
+    if not cap.isOpened() and source != 0:
+        logger.warning(f"La source {source} ne répond pas. Tentative sur la caméra 0...")
+        cap = cv2.VideoCapture(0)
+
+    # 4. Configuration de la résolution
+    if cap.isOpened():
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Réduit le retard (lag)
+    
     return cap
 
 def trigger_alert(status, opacity, mean_s, signification, composant):
@@ -664,7 +675,7 @@ if 'app_state' not in st.session_state:
 
 app = st.session_state.app_state
 
-# --- CONFIGURATION DU LAYOUT (Ligne 440 environ) ---
+# --- CONFIGURATION DU LAYOUT ---
 col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
 
 with col_cfg:
@@ -673,24 +684,42 @@ with col_cfg:
     app['analysis_mode'] = 'Upload' if mode == 'Upload' else 'Live'
 
     if app['analysis_mode'] == 'Live':
-        # Dictionnaire pour mapper le texte aux valeurs réelles
+        # --- NOUVEAU : Menu de sélection de la source ---
         options_sources = {
             "Caméra Intégrée (0)": "0",
             "Caméra USB (1)": "1",
             "Flux RTSP / IP": "custom"
         }
-        choix_source = st.selectbox("Choisir l'entrée", options=list(options_sources.keys()))
+        choix = st.selectbox("Choisir l'entrée vidéo", options=list(options_sources.keys()))
         
-        if choix_source == "Flux RTSP / IP":
-            source_input = st.text_input("URL du flux (rtsp://...)", value='rtsp://admin:password@192.168.1.10:554/stream')
+        if choix == "Flux RTSP / IP":
+            source_input = st.text_input("URL du flux (rtsp://...)", value='rtsp://admin:pass@192.168.1.10:554/stream')
         else:
-            # On stocke la valeur technique (0 ou 1)
-            source_input = options_sources[choix_source]
-        
+            source_input = options_sources[choix]
         uploaded = None
     else:
         source_input = "N/A"
         uploaded = st.file_uploader("Fichier vidéo", type=['mp4', 'avi', 'mov', 'mkv'])
+
+    st.markdown("---")
+    
+    # --- MISE À JOUR : Bouton avec la nouvelle syntaxe width='stretch' ---
+    if st.button("▶️ Démarrer l'Analyse", disabled=CF.is_running, width='stretch'):
+        # On définit les seuils pour la fonction de démarrage
+        thresholds_ui = {
+            'flame_hsv_lower': app['flame_hsv_lower'],
+            'flame_hsv_upper': app['flame_hsv_upper'],
+            'black_v': app['black_v'],
+            'black_s': app['black_s'],
+            'grey_v_low': app['grey_v_low'],
+            'grey_v_high': app['grey_v_high'],
+            'grey_s': app['grey_s'],
+            'flame_area_frac': app['flame_area_frac'],
+            'black_frac': app['black_frac'],
+            'grey_frac': app['grey_frac'],
+        }
+        # Lancement de l'analyse avec la source choisie
+        start_analysis(source_input, uploaded if app['analysis_mode'] == 'Upload' else None, app, thresholds_ui)
     
     # NOUVELLE OPTION POUR L'AUTO-ROI
     roi_mode = st.radio("Mode ROI", ["Manuel", "Automatique"], index=0, key='roi_mode_radio', help="Manuel: Coordonnées fixées. Automatique: Détection dynamique de la flamme et du ciel.")
@@ -783,9 +812,9 @@ with col_cfg:
 with col_vid:
     st.header("🎥 Flux Vidéo & Diagnostic")
     if app.get('last_frame_rgb') is not None:
-        st.image(app['last_frame_rgb'], caption="Analyse en Temps Réel", use_column_width=True)
+        st.image(app['last_frame_rgb'], caption="Analyse en Temps Réel", width="stretch")
     else:
-        st.image("Gaz-torche.jpg", caption="Image par Défaut (Torchère/Cheminée)", use_column_width=True)
+        st.image("Gaz-torche.jpg", caption="Image par Défaut (Torchère/Cheminée)", width="stretch")
         # 
 
     st.markdown("---")
@@ -842,7 +871,7 @@ with col_logs:
         st.subheader("Dernières Entrées CSV")
         try:
             log_df = pd.read_csv(csv_file).tail(10)
-            st.dataframe(log_df, use_container_width=True)
+            st.dataframe(log_df, width="stretch")
         except pd.errors.EmptyDataError:
             st.info("Le fichier CSV est vide.")
         except Exception as e:
@@ -864,6 +893,7 @@ if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
 
     st.rerun()
+
 
 
 
