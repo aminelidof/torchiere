@@ -684,6 +684,15 @@ col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
 
 with col_cfg:
     st.header("⚙️ Configuration")
+
+# Message d'avertissement Cloud
+    st.info("""
+    **🚀 Mode Cloud activé** La caméra locale (0/1) n'est pas accessible sur le serveur.  
+    Veuillez utiliser le mode **Upload** ou un **flux RTSP**.
+    """)
+    
+    mode = st.radio("Mode Source", ["Live", "Upload"], index=1, key='mode_radio')
+    # J'ai mis index=1 pour que "Upload" soit sélectionné par défaut sur le Cloud
     
     # Sélection du mode (Live ou Fichier)
     mode = st.radio("Mode Source", ["Live", "Upload"], index=0, key='mode_radio')
@@ -842,3 +851,4 @@ with col_logs:
 if CF.is_running:
     time.sleep(1)
     st.rerun()
+
