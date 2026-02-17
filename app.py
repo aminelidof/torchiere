@@ -689,7 +689,7 @@ with col_cfg:
     st.info("""
     **🚀 Mode Cloud détecté** La caméra locale (0/1) n'est pas accessible par le serveur.  
     
-    👉 **Action :** Sélectionnez le mode **'Upload'** ci-dessous pour tester avec une vidéo.
+    👉 **Action :** Sélectionnez le mode **'Upload'** ci-dessous pour tester avec une image ou vidéo.
     """)
     
     # --- SÉLECTION DU MODE (UNIQUE) ---
@@ -841,4 +841,5 @@ with col_logs:
 if CF.is_running:
     time.sleep(1)
     st.rerun()
+
 
