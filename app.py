@@ -675,27 +675,32 @@ if 'app_state' not in st.session_state:
 
 app = st.session_state.app_state
 
-# =================================================================
-# SECTION : INTERFACE ET CONTRÔLE (CORRIGÉE DE A À Z)
-# =================================================================
+L'erreur StreamlitDuplicateElementKey est normale : dans le bloc que vous avez copié, la commande st.radio apparaît deux fois avec la même clé (key='mode_radio'). Streamlit interdit d'avoir deux widgets avec le même identifiant.
 
-# 1. Mise en page principale (Layout)
-col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
+Voici le bloc corrigé, simplifié et optimisé pour le Cloud. J'ai fusionné les deux radios en une seule qui affiche le message d'explication.
+Remplacez tout votre bloc with col_cfg: par celui-ci :
+Python
 
 with col_cfg:
     st.header("⚙️ Configuration")
 
-# Message d'avertissement Cloud
+    # --- MESSAGE D'AVERTISSEMENT CLOUD ---
     st.info("""
-    **🚀 Mode Cloud activé** La caméra locale (0/1) n'est pas accessible sur le serveur.  
-    Veuillez utiliser le mode **Upload** ou un **flux RTSP**.
+    **🚀 Mode Cloud détecté** La caméra de votre ordinateur (0/1) n'est pas accessible directement par le serveur.  
+    
+    👉 **Pour tester :** Choisissez le mode **'Upload'** ci-dessous et envoyez une vidéo.  
+    👉 **En local :** Téléchargez l'app pour utiliser votre webcam.
     """)
     
-    mode = st.radio("Mode Source", ["Live", "Upload"], index=1, key='mode_radio')
-    # J'ai mis index=1 pour que "Upload" soit sélectionné par défaut sur le Cloud
-    
-    # Sélection du mode (Live ou Fichier)
-    mode = st.radio("Mode Source", ["Live", "Upload"], index=0, key='mode_radio')
+    # --- SÉLECTION DU MODE (UNE SEULE FOIS) ---
+    # Par défaut, on met l'index sur 1 (Upload) pour éviter l'erreur caméra au démarrage sur le Cloud
+    mode = st.radio(
+        "Mode Source", 
+        ["Live", "Upload"], 
+        index=1, 
+        key='mode_radio_unique',
+        help="Choisissez 'Upload' pour tester avec un fichier vidéo sur le Cloud."
+    )
     app['analysis_mode'] = 'Upload' if mode == 'Upload' else 'Live'
 
     if app['analysis_mode'] == 'Live':
@@ -851,4 +856,5 @@ with col_logs:
 if CF.is_running:
     time.sleep(1)
     st.rerun()
+
 
