@@ -673,10 +673,10 @@ with col_cfg:
     app['analysis_mode'] = 'Upload' if mode == 'Upload' else 'Live'
 
     if app['analysis_mode'] == 'Live':
-        # --- NOUVEAU : Sélection par menu déroulant ---
+        # Menu de sélection amélioré
         options_sources = {
-            "Caméra Intégrée (0)": "0",
-            "Caméra USB (1)": "1",
+            "Caméra Intégrée (0)": 0,  # Note : ici c'est un nombre 0, pas du texte "0"
+            "Caméra USB (1)": 1,       # Note : ici c'est un nombre 1
             "Flux RTSP / IP": "custom"
         }
         choix_source = st.selectbox("Choisir l'entrée", options=list(options_sources.keys()))
@@ -692,6 +692,11 @@ with col_cfg:
         uploaded = st.file_uploader("Fichier vidéo", type=['mp4', 'avi', 'mov', 'mkv'])
         
     st.markdown("---")
+
+# Correction pour le bouton (remplacement de use_container_width)
+    if st.button("▶️ Démarrer l'Analyse", disabled=CF.is_running, width="stretch"):
+        # Logique de démarrage...
+        pass
     
     # NOUVELLE OPTION POUR L'AUTO-ROI
     roi_mode = st.radio("Mode ROI", ["Manuel", "Automatique"], index=0, key='roi_mode_radio', help="Manuel: Coordonnées fixées. Automatique: Détection dynamique de la flamme et du ciel.")
@@ -855,5 +860,6 @@ if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
 
     st.rerun()
+
 
 
