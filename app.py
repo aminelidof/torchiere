@@ -675,184 +675,147 @@ if 'app_state' not in st.session_state:
 
 app = st.session_state.app_state
 
-# --- CONFIGURATION DU LAYOUT ---
+# =================================================================
+# SECTION : INTERFACE ET CONTRÔLE (CORRIGÉE DE A À Z)
+# =================================================================
+
+# 1. Mise en page principale (Layout)
 col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
 
 with col_cfg:
     st.header("⚙️ Configuration")
+    
+    # Sélection du mode (Live ou Fichier)
     mode = st.radio("Mode Source", ["Live", "Upload"], index=0, key='mode_radio')
     app['analysis_mode'] = 'Upload' if mode == 'Upload' else 'Live'
 
     if app['analysis_mode'] == 'Live':
-        # --- NOUVEAU : Menu de sélection de la source ---
+        # Mapping propre pour la sélection de caméra
         options_sources = {
             "Caméra Intégrée (0)": "0",
             "Caméra USB (1)": "1",
             "Flux RTSP / IP": "custom"
         }
-        choix = st.selectbox("Choisir l'entrée vidéo", options=list(options_sources.keys()))
+        choix_src = st.selectbox("Choisir l'entrée vidéo", options=list(options_sources.keys()))
         
-        if choix == "Flux RTSP / IP":
+        if choix_src == "Flux RTSP / IP":
             source_input = st.text_input("URL du flux (rtsp://...)", value='rtsp://admin:pass@192.168.1.10:554/stream')
         else:
-            source_input = options_sources[choix]
+            source_input = options_sources[choix_src]
         uploaded = None
     else:
         source_input = "N/A"
         uploaded = st.file_uploader("Fichier vidéo", type=['mp4', 'avi', 'mov', 'mkv'])
 
     st.markdown("---")
-    
-    # --- MISE À JOUR : Bouton avec la nouvelle syntaxe width='stretch' ---
-    if st.button("▶️ Démarrer l'Analyse", disabled=CF.is_running, width='stretch'):
-        # On définit les seuils pour la fonction de démarrage
-        thresholds_ui = {
-            'flame_hsv_lower': app['flame_hsv_lower'],
-            'flame_hsv_upper': app['flame_hsv_upper'],
-            'black_v': app['black_v'],
-            'black_s': app['black_s'],
-            'grey_v_low': app['grey_v_low'],
-            'grey_v_high': app['grey_v_high'],
-            'grey_s': app['grey_s'],
-            'flame_area_frac': app['flame_area_frac'],
-            'black_frac': app['black_frac'],
-            'grey_frac': app['grey_frac'],
-        }
-        # Lancement de l'analyse avec la source choisie
-        start_analysis(source_input, uploaded if app['analysis_mode'] == 'Upload' else None, app, thresholds_ui)
-    
-    # NOUVELLE OPTION POUR L'AUTO-ROI
-    roi_mode = st.radio("Mode ROI", ["Manuel", "Automatique"], index=0, key='roi_mode_radio', help="Manuel: Coordonnées fixées. Automatique: Détection dynamique de la flamme et du ciel.")
+
+    # SECTION : ROI ET SEUILS
+    roi_mode = st.radio("Mode ROI", ["Manuel", "Automatique"], index=0, key='roi_mode_radio')
     app['roi_mode'] = roi_mode
-    
     is_manual_roi = (app['roi_mode'] == 'Manuel')
 
-    st.subheader("ROI Fumée")
-    app['x_roi'] = st.number_input("X", value=int(app['x_roi']), disabled=not is_manual_roi)
-    app['y_roi'] = st.number_input("Y", value=int(app['y_roi']), disabled=not is_manual_roi)
-    app['w_roi'] = st.number_input("W", value=int(app['w_roi']), disabled=not is_manual_roi)
-    app['h_roi'] = st.number_input("H", value=int(app['h_roi']), disabled=not is_manual_roi)
+    with st.expander("📍 Zones d'Intérêt (ROI)", expanded=False):
+        st.subheader("ROI Fumée")
+        app['x_roi'] = st.number_input("X", value=int(app['x_roi']), disabled=not is_manual_roi)
+        app['y_roi'] = st.number_input("Y", value=int(app['y_roi']), disabled=not is_manual_roi)
+        app['w_roi'] = st.number_input("W", value=int(app['w_roi']), disabled=not is_manual_roi)
+        app['h_roi'] = st.number_input("H", value=int(app['h_roi']), disabled=not is_manual_roi)
 
-    st.subheader("ROI Ciel (normalisation)")
-    app['rsx'] = st.number_input("rsx", value=int(app['rsx']), disabled=not is_manual_roi)
-    app['rsy'] = st.number_input("rsy", value=int(app['rsy']), disabled=not is_manual_roi)
-    app['rsw'] = st.number_input("rsw", value=int(app['rsw']), disabled=not is_manual_roi)
-    app['rsh'] = st.number_input("rsh", value=int(app['rsh']), disabled=not is_manual_roi)
+        st.subheader("ROI Ciel")
+        app['rsx'] = st.number_input("rsx", value=int(app['rsx']), disabled=not is_manual_roi)
+        app['rsy'] = st.number_input("rsy", value=int(app['rsy']), disabled=not is_manual_roi)
+        app['rsw'] = st.number_input("rsw", value=int(app['rsw']), disabled=not is_manual_roi)
+        app['rsh'] = st.number_input("rsh", value=int(app['rsh']), disabled=not is_manual_roi)
 
-    st.markdown("---")
-    st.subheader("Seuils : Flamme & Fumée")
-    col1, col2 = st.columns(2)
-    with col1:
-        app['flame_area_frac'] = st.number_input("Seuil surf. flamme", value=float(app['flame_area_frac']), min_value=0.0, max_value=0.1, step=0.001)
-        app['black_frac'] = st.number_input("Seuil fumée noire", value=float(app['black_frac']), min_value=0.0, max_value=0.5, step=0.005)
-        app['grey_frac'] = st.number_input("Seuil fumée grise", value=float(app['grey_frac']), min_value=0.0, max_value=0.5, step=0.005)
-    with col2:
-        app['black_v'] = st.number_input("black: V threshold", value=int(app['black_v']), min_value=0, max_value=255)
-        app['black_s'] = st.number_input("black: S threshold", value=int(app['black_s']), min_value=0, max_value=255)
-        app['grey_v_low'] = st.number_input("grey: V low", value=int(app['grey_v_low']), min_value=0, max_value=255)
-        app['grey_v_high'] = st.number_input("grey: V high", value=int(app['grey_v_high']), min_value=0, max_value=255)
-        app['grey_s'] = st.number_input("grey: S threshold", value=int(app['grey_s']), min_value=0, max_value=255)
-
-    st.subheader("HSV Flamme")
-    # NOTE: Les seuils ici sont pour la détection générale (flame_ratio).
-    # La classification par couleur (Bleu, Jaune/Orange, Rouge) utilise des seuils fixes internes pour la cohérence.
-    fcol1, fcol2 = st.columns(2)
-    with fcol1:
-        lower_h = st.number_input("Flame H lower (Gen)", value=int(app['flame_hsv_lower'][0]), min_value=0, max_value=179)
-        lower_s = st.number_input("Flame S lower (Gen)", value=int(app['flame_hsv_lower'][1]), min_value=0, max_value=255)
-        lower_v = st.number_input("Flame V lower (Gen)", value=int(app['flame_hsv_lower'][2]), min_value=0, max_value=255)
-    with fcol2:
-        upper_h = st.number_input("Flame H upper (Gen)", value=int(app['flame_hsv_upper'][0]), min_value=0, max_value=179)
-        upper_s = st.number_input("Flame S upper (Gen)", value=int(app['flame_hsv_upper'][1]), min_value=0, max_value=255)
-        upper_v = st.number_input("Flame V upper (Gen)", value=int(app['flame_hsv_upper'][2]), min_value=0, max_value=255)
-    app['flame_hsv_lower'] = [lower_h, lower_s, lower_v]
-    app['flame_hsv_upper'] = [upper_h, upper_s, upper_v]
-
-
-    st.markdown("---")
+    with st.expander("🎚️ Paramètres Détection", expanded=False):
+        st.subheader("Fumée & Flamme")
+        app['flame_area_frac'] = st.number_input("Seuil surf. flamme", value=float(app['flame_area_frac']), step=0.001)
+        app['black_frac'] = st.number_input("Seuil fumée noire", value=float(app['black_frac']), step=0.005)
+        app['grey_frac'] = st.number_input("Seuil fumée grise", value=float(app['grey_frac']), step=0.005)
         
-        # LOGIQUE DE CONVERSION DE SOURCE (IMPORTANT)
-        # OpenCV a besoin d'un ENTIER (0) et non d'un TEXTE ("0") pour la webcam
+        st.subheader("HSV Flamme")
+        fcol1, fcol2 = st.columns(2)
+        with fcol1:
+            lower_h = st.number_input("H min", value=int(app['flame_hsv_lower'][0]))
+            lower_s = st.number_input("S min", value=int(app['flame_hsv_lower'][1]))
+            lower_v = st.number_input("V min", value=int(app['flame_hsv_lower'][2]))
+        with fcol2:
+            upper_h = st.number_input("H max", value=int(app['flame_hsv_upper'][0]))
+            upper_s = st.number_input("S max", value=int(app['flame_hsv_upper'][1]))
+            upper_v = st.number_input("V max", value=int(app['flame_hsv_upper'][2]))
+        app['flame_hsv_lower'] = [lower_h, lower_s, lower_v]
+        app['flame_hsv_upper'] = [upper_h, upper_s, upper_v]
+
+    st.markdown("---")
+
+    # SECTION : BOUTONS DE COMMANDE (LOGIQUE ROBUSTE)
+    # On prépare les seuils ici
+    thresholds_ui = {
+        'flame_hsv_lower': app['flame_hsv_lower'],
+        'flame_hsv_upper': app['flame_hsv_upper'],
+        'black_v': app['black_v'], 'black_s': app['black_s'],
+        'grey_v_low': app['grey_v_low'], 'grey_v_high': app['grey_v_high'], 'grey_s': app['grey_s'],
+        'flame_area_frac': app['flame_area_frac'], 'black_frac': app['black_frac'], 'grey_frac': app['grey_frac'],
+    }
+
+    if st.button("▶️ Démarrer l'Analyse", disabled=CF.is_running, width='stretch'):
+        # Conversion forcée pour OpenCV
         try:
-            if isinstance(source_input, str) and source_input.isdigit():
-                final_src = int(source_input)
-            else:
-                final_src = source_input
+            final_src = int(source_input) if (isinstance(source_input, str) and source_input.isdigit()) else source_input
         except:
             final_src = source_input
-
-        # Les seuils (ne pas changer)
-        thresholds_ui = {
-            'flame_hsv_lower': app['flame_hsv_lower'],
-            'flame_hsv_upper': app['flame_hsv_upper'],
-            'black_v': app['black_v'],
-            'black_s': app['black_s'],
-            'grey_v_low': app['grey_v_low'],
-            'grey_v_high': app['grey_v_high'],
-            'grey_s': app['grey_s'],
-            'flame_area_frac': app['flame_area_frac'],
-            'black_frac': app['black_frac'],
-            'grey_frac': app['grey_frac'],
-        }
-        
-        # Lancement avec la source convertie
+            
         start_analysis(final_src, uploaded if app['analysis_mode'] == 'Upload' else None, app, thresholds_ui)
 
-    if st.button("⏹️ Arrêter", disabled=not CF.is_running):
+    if st.button("⏹️ Arrêter", disabled=not CF.is_running, width='stretch'):
         stop_analysis()
 
     if CF.is_running:
-        st.info("Analyse en cours...")
+        st.info("⚡ Analyse en cours...")
     else:
-        st.warning("Analyse arrêtée.")
+        st.warning("💤 Analyse arrêtée.")
 
-# Vidéo / Frame
+# 2. Colonne Centrale : Flux Vidéo & Diagnostic
 with col_vid:
     st.header("🎥 Flux Vidéo & Diagnostic")
+    
+    # Affichage de l'image (Norme 2026 : width='stretch')
     if app.get('last_frame_rgb') is not None:
-        st.image(app['last_frame_rgb'], caption="Analyse en Temps Réel", width="stretch")
+        st.image(app['last_frame_rgb'], caption="Direct - Surveillance Torchère", width="stretch")
     else:
-        st.image("Gaz-torche.jpg", caption="Image par Défaut (Torchère/Cheminée)", width="stretch")
-        # 
+        st.image("Gaz-torche.jpg", caption="Attente de flux...", width="stretch")
 
     st.markdown("---")
-    st.subheader("Statut Actuel")
+    
+    # Affichage du statut avec couleur dynamique
     status = app.get('current_status', 'Inconnu')
     info = DIAGNOSTIC_INFO.get(status, DIAGNOSTIC_INFO["Unknown"])
-    color_hex = f'rgb({info["Color"][2]}, {info["Color"][1]}, {info["Color"][0]})' # BGR to RGB for HTML
+    color_hex = f'rgb({info["Color"][2]}, {info["Color"][1]}, {info["Color"][0]})'
     
     st.markdown(f"""
-    <div style="padding: 10px; border-radius: 5px; background-color: {color_hex}; color: black;">
-        <strong>Statut:</strong> {status}<br>
-        <strong>Signification:</strong> {info["Signification"]}
+    <div style="padding: 15px; border-radius: 10px; background-color: {color_hex}; color: black; border: 2px solid #333;">
+        <h3 style="margin:0;">Statut : {status}</h3>
+        <p style="margin:5px 0 0 0;"><strong>Diagnostic :</strong> {info["Signification"]}</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.subheader("Métriques Clés")
-    st.write(f"**Opacité :** {app.get('opacity_live', 0.0):.1f} %")
-    st.write(f"**Ratio Flamme Totale :** {app.get('flame_ratio', 0.0):.4f}")
-    st.write(f"**Ratio Fumée Noire :** {app.get('black_ratio', 0.0):.4f}")
-    st.write(f"**Ratio Fumée Grise :** {app.get('grey_ratio', 0.0):.4f}")
 
-    st.markdown("---")
-    st.subheader("Ratios de Couleur (Avancé)")
-    st.write(f"**Ratio Bleu (Optimal) :** {app.get('blue_ratio', 0.0):.4f}")
-    st.write(f"**Ratio Jaune/Orange (Incomplet) :** {app.get('yellow_ratio', 0.0):.4f}")
-    st.write(f"**Ratio Rougeâtre (Instable/Impuretés) :** {app.get('red_ratio', 0.0):.4f}")
+    # Métriques en colonnes
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Opacité", f"{app.get('opacity_live', 0.0):.1f} %")
+    m2.metric("Ratio Flamme", f"{app.get('flame_ratio', 0.0):.4f}")
+    m3.metric("Fumée Noire", f"{app.get('black_ratio', 0.0):.4f}")
 
-
-# Logs et Historique
+# 3. Colonne Droite : Historique & Logs
 with col_logs:
     st.header("📊 Historique")
     
-    # Opacity Plot
+    # Graphique d'opacité
     opacity_df = pd.DataFrame(list(app.get('opacity_deque', deque())), columns=['time', 'opacity'])
     if not opacity_df.empty:
         opacity_df.set_index('time', inplace=True)
         st.line_chart(opacity_df['opacity'], height=200)
     else:
-        st.warning("Aucune donnée d'opacité à afficher.")
+        st.info("En attente de données...")
 
     st.markdown("---")
 
@@ -860,42 +823,22 @@ with col_logs:
     csv_file = app.get('csv_file', DEFAULT_CSV)
     if os.path.exists(csv_file):
         with open(csv_file, "r") as f:
-            st.download_button(
-                label="Télécharger le Log CSV",
-                data=f.read(),
-                file_name=csv_file,
-                mime="text/csv"
-            )
-        st.subheader("Dernières Entrées CSV")
+            st.download_button(label="📥 Télécharger CSV", data=f.read(), file_name=csv_file, mime="text/csv", width='stretch')
+        
+        st.subheader("Dernières entrées")
         try:
-            log_df = pd.read_csv(csv_file).tail(10)
+            log_df = pd.read_csv(csv_file).tail(5)
             st.dataframe(log_df, width="stretch")
-        except pd.errors.EmptyDataError:
-            st.info("Le fichier CSV est vide.")
-        except Exception as e:
-            st.error(f"Erreur de lecture CSV: {e}")
+        except:
+            pass
 
-    # Alerts Log
-    st.subheader("Journal des Alertes")
+    # Journal des Alertes
+    st.subheader("🚨 Alertes")
     if os.path.exists(ALERTS_LOG_FILE):
-        try:
-            with open(ALERTS_LOG_FILE, "r") as f:
-                alerts_text = f.read()
-                st.text_area("Alertes", alerts_text, height=200)
-        except Exception:
-            st.info("Aucune alerte enregistrée.")
+        with open(ALERTS_LOG_FILE, "r") as f:
+            st.text_area("Logs", f.read(), height=150)
 
-# Relancer le script pour rafraîchir la UI Streamlit
-# Ce block est nécessaire pour que Streamlit puisse rafraîchir l'UI
+# 4. Rafraîchissement automatique
 if CF.is_running:
-    time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
-
+    time.sleep(1)
     st.rerun()
-
-
-
-
-
-
-
-
