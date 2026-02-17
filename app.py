@@ -664,39 +664,30 @@ if 'app_state' not in st.session_state:
 
 app = st.session_state.app_state
 
-# Layout
-col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
-
 with col_cfg:
     st.header("⚙️ Configuration")
     mode = st.radio("Mode Source", ["Live", "Upload"], index=0, key='mode_radio')
     app['analysis_mode'] = 'Upload' if mode == 'Upload' else 'Live'
 
     if app['analysis_mode'] == 'Live':
-        # Menu de sélection amélioré
+        # Mapping propre : Nom -> Valeur (Entier pour cam, String pour RTSP)
         options_sources = {
-            "Caméra Intégrée (0)": 0,  # Note : ici c'est un nombre 0, pas du texte "0"
-            "Caméra USB (1)": 1,       # Note : ici c'est un nombre 1
+            "Caméra Intégrée (0)": 0,
+            "Caméra USB (1)": 1,
             "Flux RTSP / IP": "custom"
         }
         choix_source = st.selectbox("Choisir l'entrée", options=list(options_sources.keys()))
         
         if choix_source == "Flux RTSP / IP":
-            source_input = st.text_input("URL du flux (rtsp://...)", value='rtsp://admin:password@192.168.1.10:554/stream')
+            source_input = st.text_input("URL du flux", value='rtsp://admin:password@192.168.1.10:554/stream')
         else:
             source_input = options_sources[choix_source]
         
         uploaded = None
     else:
-        source_input = st.text_input("Source (désactivée)", value='N/A', disabled=True)
+        source_input = "N/A"
+        st.text_input("Source (désactivée)", value='N/A', disabled=True)
         uploaded = st.file_uploader("Fichier vidéo", type=['mp4', 'avi', 'mov', 'mkv'])
-        
-    st.markdown("---")
-
-# Correction pour le bouton (remplacement de use_container_width)
-    if st.button("▶️ Démarrer l'Analyse", disabled=CF.is_running, width="stretch"):
-        # Logique de démarrage...
-        pass
     
     # NOUVELLE OPTION POUR L'AUTO-ROI
     roi_mode = st.radio("Mode ROI", ["Manuel", "Automatique"], index=0, key='roi_mode_radio', help="Manuel: Coordonnées fixées. Automatique: Détection dynamique de la flamme et du ciel.")
@@ -860,6 +851,7 @@ if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
 
     st.rerun()
+
 
 
 
