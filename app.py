@@ -675,12 +675,6 @@ if 'app_state' not in st.session_state:
 
 app = st.session_state.app_state
 
-L'erreur StreamlitDuplicateElementKey est normale : dans le bloc que vous avez copié, la commande st.radio apparaît deux fois avec la même clé (key='mode_radio'). Streamlit interdit d'avoir deux widgets avec le même identifiant.
-
-Voici le bloc corrigé, simplifié et optimisé pour le Cloud. J'ai fusionné les deux radios en une seule qui affiche le message d'explication.
-Remplacez tout votre bloc with col_cfg: par celui-ci :
-Python
-
 # =================================================================
 # SECTION : INTERFACE ET CONTRÔLE (VERSION FINALE ROBUSTE)
 # =================================================================
@@ -847,3 +841,4 @@ with col_logs:
 if CF.is_running:
     time.sleep(1)
     st.rerun()
+
