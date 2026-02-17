@@ -664,6 +664,8 @@ if 'app_state' not in st.session_state:
 
 app = st.session_state.app_state
 
+# 1. D'abord, on définit les colonnes (C'EST CETTE LIGNE QUI MANQUE PROBABLEMENT)
+col_cfg, col_vid, col_logs = st.columns([1, 3, 1])
 with col_cfg:
     st.header("⚙️ Configuration")
     mode = st.radio("Mode Source", ["Live", "Upload"], index=0, key='mode_radio')
@@ -851,6 +853,7 @@ if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
 
     st.rerun()
+
 
 
 
