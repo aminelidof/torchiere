@@ -11,7 +11,7 @@ from collections import deque
 import logging
 
 # ---------- Configuration ----------
-APP_TITLE = "🔥 Surveillance de Combustion de Torchère — Diagnostic Amélioré avec Auto-ROI"
+APP_TITLE = "🔥 Surveillance de Combustion de Torchère — Auto ROI"
 ALERTS_LOG_FILE = "alerts.log"
 DEFAULT_CSV = "torchere_log.csv"
 ROLLING_WINDOW = 600 # frames kept in memory for plotting
@@ -844,3 +844,4 @@ if CF.is_running:
     time.sleep(1) # Ajoute un court délai pour laisser le thread d'analyse mettre à jour les données
 
     st.rerun()
+
